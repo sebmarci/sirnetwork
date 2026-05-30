@@ -1,12 +1,18 @@
 import pandas as pd
 import eurostat
 
-def fetch_eu_air_traffic(filename="Do not save", year=2022):
-	print("1. Fetching Eurostat Air Traffic Data...")
+def fetch_eu_air_traffic(filename="Do not save", year=2022, check=""):
+	print("+ Fetching Eurostat Air Traffic Data...")
 	# Dataset 'avia_paocc' = Passenger transport by partner country
 	# Note: Eurostat datasets are massive. We download it and filter it.
 	dataset_code = 'avia_paocc'
-	
+	if check != "":
+		try:
+			data = pd.read_csv(check, index_col=0)
+			print("Loaded succesfully!")
+			return data
+		except:
+			print("Did not found the file on the path specified. Downloading the database...")
 	try:
 		df = eurostat.get_data_df(dataset_code)
 		year_col = str(year)
@@ -46,6 +52,8 @@ def fetch_eu_air_traffic(filename="Do not save", year=2022):
 			# Sometimes a country only receives flights but doesn't send them (or vice versa in the data).
 			imputed_matrix = traffic_matrix.combine_first(traffic_matrix.T)
 			final_matrix = imputed_matrix.fillna(0)
+			if filename != "Do not save":
+				final_matrix.to_csv(filename)
 			return final_matrix
 		else:
 			print("   -> Year not found in dataset. Please check Eurostat column names.")
@@ -57,7 +65,7 @@ def fetch_eu_air_traffic(filename="Do not save", year=2022):
 	
 def fetch_eu_populations(year=2022):
 	year_col = str(year)
-	print("Fetching Eurostat Population Data...")
+	print("+ Fetching Eurostat Population Data...")
 	
 	# 'demo_pjan' is the official dataset for population on Jan 1st
 	dataset_code = 'demo_pjan'

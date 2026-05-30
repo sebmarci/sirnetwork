@@ -5,7 +5,7 @@ import imageio
 import os
 import pandas as pd
 
-def generate_gif(time, S, I, R, eurostat_codes):
+def generate_gif(time, S, I, R, eurostat_codes, gif_path = 'sir_eu_model_2x2.gif'):
     # ==========================================
     # 1. SETUP MAP GEOMETRY (GeoPandas 1.0 Fix)
     # ==========================================
@@ -19,7 +19,7 @@ def generate_gif(time, S, I, R, eurostat_codes):
     world.loc[world['name'] == 'Norway', 'iso_a3'] = 'NOR'
 
     # Filter to Europe and remove missing data codes
-    europe = world[(world.continent == 'Europe') & (world.name != 'Russia')].copy()
+    europe = world[(world.continent == 'Europe') | (world.name == 'Turkey')].copy()
     europe = europe[europe.iso_a3 != '-99']
 
     # ==========================================
@@ -42,21 +42,27 @@ def generate_gif(time, S, I, R, eurostat_codes):
     # Generate Mock SIR Data (Replace this with your actual array!)
     # Shape: [30 Days, 35 Countries, 3 Compartments]
     sir_data = np.stack((S.T, I.T, R.T), axis=-1)
-    sir_data = sir_data / sir_data.sum(axis=2, keepdims=True)
+    sir_data = np.clip(sir_data / sir_data.sum(axis=2, keepdims=True), 0, 1)
 
     # ==========================================
     # 3. RENDER FRAMES TO TEMP FOLDER
     # ==========================================
     print("3. Generating frames...")
     filenames = []
-    if not os.path.exists('temp_frames'):
-        os.makedirs('temp_frames')
 
-    for t in range(time):
+    # Get the absolute path to your current working directory
+    current_dir = os.getcwd()
+    temp_dir = os.path.join(current_dir, 'temp_frames')
+
+    # Create the folder safely
+    os.makedirs(temp_dir, exist_ok=True)
+
+    for t in range(len(time)):
         fig, axs = plt.subplots(2, 2, figsize=(12, 10))
-        fig.suptitle(f'EU Disease Spread - Day {t}', fontsize=16)
+        fig.suptitle(f'EU Disease Spread - Day {int(time[t])}', fontsize=16)
         
-        day_data = sir_data[t]
+        day_data = sir_data[t, :, :]
+
         
         # Pack this day's data into a DataFrame alongside the correct ISO3 codes
         df_day = pd.DataFrame({
@@ -64,7 +70,7 @@ def generate_gif(time, S, I, R, eurostat_codes):
             'Color_S': [ (0, s, 0) for s in day_data[:, 0] ],
             'Color_I': [ (i, 0, 0) for i in day_data[:, 1] ],
             'Color_R': [ (0, 0, r) for r in day_data[:, 2] ],
-            'Color_Comb': [ (i, s, r) for i, s, r in day_data ]
+            'Color_Comb': [ (i, s, r) for s, i, r in day_data]
         })
         
         # MERGE: Align the simulated data exactly to the map geometry
@@ -93,29 +99,28 @@ def generate_gif(time, S, I, R, eurostat_codes):
             ax.axis('off') 
         
         # Save the frame
-        filename = f'temp_frames/frame_{t:03d}.png'
+        filename = os.path.join(temp_dir, f'frame_{int(time[t]):03d}.png')
         plt.tight_layout()
         plt.savefig(filename, dpi=100, bbox_inches='tight', facecolor='white')
         plt.close(fig) 
         filenames.append(filename)
-        
-        if t % 5 == 0:
-            print(f"   -> Rendered Day {t}/{len(time)-1}")
 
     # ==========================================
     # 4. STITCH INTO GIF
     # ==========================================
     print("4. Stitching into GIF...")
-    gif_path = 'sir_eu_model_2x2.gif'
 
-    with imageio.get_writer(gif_path, mode='I', fps=4) as writer:
+    with imageio.get_writer(gif_path, mode='I', fps=10) as writer:
         for filename in filenames:
             image = imageio.imread(filename)
             writer.append_data(image)
 
     # Cleanup temporary PNG files
+    # Cleanup temporary PNG files
     for filename in filenames:
-        os.remove(filename)
-    os.rmdir('temp_frames')
+        if os.path.exists(filename):
+            os.remove(filename)
+    if os.path.exists(temp_dir):
+        os.rmdir(temp_dir)
 
     print(f"Success! GIF saved as: {gif_path}")
