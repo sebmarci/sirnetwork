@@ -17,9 +17,10 @@ def generate_gif(time, S, I, R, eurostat_codes, gif_path = 'sir_eu_model_2x2.gif
     # Patch France and Norway before filtering
     world.loc[world['name'] == 'France', 'iso_a3'] = 'FRA'
     world.loc[world['name'] == 'Norway', 'iso_a3'] = 'NOR'
+    world.loc[world['name'] == 'Turkey', 'iso_a3'] = 'TUR'
 
     # Filter to Europe and remove missing data codes
-    europe = world[(world.continent == 'Europe') | (world.name == 'Turkey')].copy()
+    europe = world[(world.continent == 'Europe') | (world.iso_a3 == 'TUR')].copy()
     europe = europe[europe.iso_a3 != '-99']
 
     # ==========================================
