@@ -432,15 +432,7 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
         ax.set_zlabel(z_label, fontsize=12, labelpad=10)
         
         ax.view_init(elev=25, azim=-60)
-        
-        # --- THE ZOOM FIX ---
-        # A zoom level < 1.0 pulls the camera back, shrinking the plot 
-        # and giving the labels plenty of room to breathe!
-        try:
-            ax.set_box_aspect(None, zoom=0.9) 
-        except TypeError:
-            # Fallback for older versions of Matplotlib (pre-3.3.0)
-            ax.dist = 12 
+        ax.set_box_aspect(None, zoom=0.9) 
         
         ax.xaxis.pane.fill = False
         ax.yaxis.pane.fill = False
