@@ -350,7 +350,7 @@ def quarantine_plotter_2d(population, init_state, C, infection_rate, recovery_ra
 
     # 3. Format each individual subplot
     axs[0].set_title('Susceptible Fraction', fontsize=14)
-    axs[1].set_title('Infected Fraction (The Curve)', fontsize=14)
+    axs[1].set_title('Infected Fraction', fontsize=14)
     axs[2].set_title('Recovered Fraction', fontsize=14)
 
     for ax in axs:
@@ -381,13 +381,16 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
     # 1. Run the Simulations
     for alpha in social_connectivity_range:
         for q in quarantine_range:
+
+            closing = (1-q)
+
             current_C = C.copy() 
             num_to_quarantine = top_nodes_under_quarantine
             
             if num_to_quarantine > 0:
                 quarantined_indices = top_nodes_idx[:num_to_quarantine]
-                current_C[quarantined_indices, :] = current_C[quarantined_indices, :] * q
-                current_C[:, quarantined_indices] = current_C[:, quarantined_indices] * q
+                current_C[quarantined_indices, :] = current_C[quarantined_indices, :] * closing
+                current_C[:, quarantined_indices] = current_C[:, quarantined_indices] * closing
             
             sim = Simulation(
                 populations=population,
@@ -412,7 +415,7 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
     X_alpha = np.array(X_alpha)
     Y_outside = np.array(Y_outside)
     Z_time = np.array(Z_time)
-    Z_value = np.array(Z_value)
+    Z_value = 1 - np.array(Z_value)
 
     # ==========================================
     # Helper Function to Keep Code DRY (Don't Repeat Yourself)
@@ -451,7 +454,7 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
     elif display == "value":
         fig = plt.figure(figsize=(10, 8))
         ax = fig.add_subplot(111, projection='3d')
-        draw_3d_scatter(ax, Z_value, 'Value of Peak Infection (ratio)')
+        draw_3d_scatter(ax, Z_value, 'Ratio of Non Infected People')
         plt.tight_layout(pad=3.0)
         plt.show()
         
@@ -462,7 +465,7 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
         draw_3d_scatter(ax1, Z_time, 'Time to Peak Infection (Days)')
         
         ax2 = fig.add_subplot(1, 2, 2, projection='3d')
-        draw_3d_scatter(ax2, Z_value, 'Value of Peak Infection (ratio)')
+        draw_3d_scatter(ax2, Z_value, 'Ratio of Non Infected People')
 
         # THE FIX: Explicit padding values prevent the 1x2 layout from cropping the Z labels
         plt.tight_layout(pad=4.0, w_pad=5.0)
