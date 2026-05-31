@@ -381,7 +381,6 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
     # 1. Run the Simulations
     for alpha in social_connectivity_range:
         for q in quarantine_range:
-            
             current_C = C.copy() 
             num_to_quarantine = top_nodes_under_quarantine
             
@@ -428,12 +427,21 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
                    vmin=np.min(Z_data), vmax=np.max(Z_data), 
                    s=20, alpha=0.3, edgecolors='none')
 
-        # Formatting (labelpad reduced slightly to keep labels inside bounding box)
         ax.set_xlabel(r'$\alpha$ (Social Connectivity)', fontsize=12, labelpad=8)
-        ax.set_ylabel('Localized quarantine effectivness', fontsize=12, labelpad=8)
-        ax.set_zlabel(z_label, fontsize=12, labelpad=8)
+        ax.set_ylabel('Closing down largest airports', fontsize=12, labelpad=8)
+        ax.set_zlabel(z_label, fontsize=12, labelpad=10)
         
         ax.view_init(elev=25, azim=-60)
+        
+        # --- THE ZOOM FIX ---
+        # A zoom level < 1.0 pulls the camera back, shrinking the plot 
+        # and giving the labels plenty of room to breathe!
+        try:
+            ax.set_box_aspect(None, zoom=0.9) 
+        except TypeError:
+            # Fallback for older versions of Matplotlib (pre-3.3.0)
+            ax.dist = 12 
+        
         ax.xaxis.pane.fill = False
         ax.yaxis.pane.fill = False
         ax.zaxis.pane.fill = False
@@ -456,7 +464,7 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
         plt.show()
         
     else: # "both"
-        fig = plt.figure(figsize=(22, 8))
+        fig = plt.figure(figsize=(20, 8))
         
         ax1 = fig.add_subplot(1, 2, 1, projection='3d')
         draw_3d_scatter(ax1, Z_time, 'Time to Peak Infection (Days)')
@@ -464,5 +472,6 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
         ax2 = fig.add_subplot(1, 2, 2, projection='3d')
         draw_3d_scatter(ax2, Z_value, 'Value of Peak Infection (ratio)')
 
-        plt.subplots_adjust(left=0.05, right=0.85, bottom=0.1, top=0.9, wspace=0.15)
+        # THE FIX: Explicit padding values prevent the 1x2 layout from cropping the Z labels
+        plt.tight_layout(pad=4.0, w_pad=5.0)
         plt.show()
