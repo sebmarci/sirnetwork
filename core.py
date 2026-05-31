@@ -45,9 +45,9 @@ class Simulation:
         
         return np.concat((S_diff, I_diff, R_diff), axis = None)
     
-    def solve_system(self, t_end: float):
+    def solve_system(self, t_end: float, t_eval=None):
         
-        solution = solve_ivp(self._differential, (0, t_end), self.init_state, method = ODE_METHOD, max_step = 10)
+        solution = solve_ivp(self._differential, (0, t_end), self.init_state, method = ODE_METHOD, max_step = 10, t_eval=t_eval)
         self.times = solution.t
         self.state_hist = solution.y
         
