@@ -14,11 +14,14 @@ class Simulation:
         infection_rate: float,
         recovery_rate: float,
     ):
-        assert np.any(connection_matrix >= 0), 'Connection matrix should be non-negative'
-        assert connection_matrix.shape[0] == connection_matrix.shape[1], 'Connection matrix should be square'
-        assert (connection_matrix.shape[0]*3, ) == init_state.shape, 'Connection matrix should be NxN, no. of points = N, length of initial state = 3N'
         
+        assert np.all(connection_matrix >= 0), 'Connection matrix should be non-negative'
+        assert connection_matrix.shape[0] == connection_matrix.shape[1], 'Connection matrix should be square'
         self.n_points = connection_matrix.shape[0]
+        assert np.allclose(connection_matrix.sum(axis = 1), np.ones(self.n_points)), 'Connection matrix should be row-normalized'
+        assert len(populations) == self.n_points, 'Population vector should match connection matrix dimensions'
+        assert len(init_state) == 3*self.n_points, 'Initial state vector length is invalid, should be 3N'
+        
         self.populations = populations
         self.init_state = init_state
         self.connection_matrix = connection_matrix
@@ -34,8 +37,8 @@ class Simulation:
         force_of_infection = self.connection_matrix @ (S_curr / self.populations)
         
         S_diff = -force_of_infection * S_curr 
-        I_diff = force_of_infection * S_curr - self.recovery_rate * I_diff
-        R_diff = self.recovery_rate * I_diff
+        I_diff = force_of_infection * S_curr - self.recovery_rate * I_curr
+        R_diff = self.recovery_rate * I_curr
         
         return np.concat((S_diff, I_diff, R_diff), axis = None)
     
