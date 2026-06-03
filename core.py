@@ -34,7 +34,7 @@ class Simulation:
         I_curr = state[self.n_points:2*self.n_points]
         R_curr = state[2*self.n_points:3*self.n_points]
         
-        force_of_infection = self.connection_matrix @ (S_curr / self.populations)
+        force_of_infection = self.infection_rate * self.connection_matrix @ (I_curr / self.populations)
         
         S_diff = -force_of_infection * S_curr 
         I_diff = force_of_infection * S_curr - self.recovery_rate * I_curr
@@ -44,7 +44,7 @@ class Simulation:
     
     def solve_system(self, t_end: float, t_eval=None):
         
-        solution = solve_ivp(self._differential, (0, t_end), self.init_state, method = ODE_METHOD, max_step = 10, t_eval=t_eval)
+        solution = solve_ivp(self._differential, (0, t_end), self.init_state, method = ODE_METHOD, max_step = 1, t_eval=t_eval)
         self.times = solution.t
         self.state_hist = solution.y
         
