@@ -13,7 +13,6 @@ class Simulation:
         connection_matrix,
         infection_rate: float,
         recovery_rate: float,
-        social_connectivity: float
     ):
         assert np.any(connection_matrix >= 0), 'Connection matrix should be non-negative'
         assert connection_matrix.shape[0] == connection_matrix.shape[1], 'Connection matrix should be square'
@@ -25,23 +24,18 @@ class Simulation:
         self.connection_matrix = connection_matrix
         self.infection_rate = infection_rate
         self.recovery_rate = recovery_rate
-        self.social_connectivity = social_connectivity
-        
-        self.c_row_sums = np.sum(connection_matrix, axis = 1)
-            
+                    
     def _differential(self, _, state):
                 
         S_curr = state[:self.n_points]
         I_curr = state[self.n_points:2*self.n_points]
         R_curr = state[2*self.n_points:3*self.n_points]
         
-        node_spread = self.infection_rate*S_curr*I_curr/self.populations
-        network_spread = self.social_connectivity*self.infection_rate*S_curr/(self.populations + self.c_row_sums) * (self.connection_matrix @ (I_curr / self.populations))
-        recovery = self.recovery_rate*I_curr/self.populations
+        force_of_infection = self.connection_matrix @ (S_curr / self.populations)
         
-        S_diff = -(node_spread + network_spread)
-        I_diff = node_spread + network_spread - recovery
-        R_diff = recovery 
+        S_diff = -force_of_infection * S_curr 
+        I_diff = force_of_infection * S_curr - self.recovery_rate * I_diff
+        R_diff = self.recovery_rate * I_diff
         
         return np.concat((S_diff, I_diff, R_diff), axis = None)
     
