@@ -185,32 +185,34 @@ def generate_gif(time, S, I, R, eurostat_codes, gif_path = 'sir_eu_model_2x2_new
 
 def social_connectivity_comp(population, init_state, C, t_end=360, infection_rate=0.1, recovery_rate=0.05,):
     # The social connectivity values (alpha) to iterate through
-    alphas = [1.0, 0.8, 0.5, 0.4, 0.2, 0.1]
+    N = population.size
+    idx = [0, N//5, 2*N//5, 3*N//5, 4*N//5, N-1]
     subplot_labels = ['(a)', '(b)', '(c)', '(d)', '(e)', '(f)']
-
+    sorting = np.argsort(population)
+    idx = [sorting[i] for i in idx]
     # Create a 2x3 grid of subplots
     fig, axs = plt.subplots(2, 3, figsize=(18, 10))
     total_population = np.sum(population)
 
-    for ax, alpha, label in zip(axs.flat, alphas, subplot_labels):
+    sim = Simulation(
+    populations=population,
+    init_state=init_state,
+    connection_matrix=C,
+    infection_rate=infection_rate,       
+    recovery_rate=recovery_rate, 
+    )
+
+    for ax, id, label in zip(axs.flat, idx, subplot_labels):
         # 1. Run the simulation for the current alpha
-        sim = Simulation(
-            populations=population,
-            init_state=init_state,
-            connection_matrix=C,
-            infection_rate=infection_rate,       
-            recovery_rate=recovery_rate, 
-            social_connectivity=alpha,
-        )
-        
+
         sim.solve_system(t_end=t_end) 
         t, S, I, R = sim.get_results()
         
         # 2. Normalize to "Population Density" (Fractions 0.0 to 1.0)
         # Assuming S, I, R arrays return shape (time, nodes), sum across nodes to get the global trend
-        S_density = np.sum(S, axis=0) / total_population
-        I_density = np.sum(I, axis=0) / total_population
-        R_density = np.sum(R, axis=0) / total_population
+        S_density = S[id, :] / population[id]
+        I_density = I[id, :] / population[id]
+        R_density = R[id, :] / population[id]
         
         # 3. Plot the curves matching the reference colors
         ax.plot(t, S_density, label='Susceptible', color='b', linewidth=2)
@@ -218,7 +220,7 @@ def social_connectivity_comp(population, init_state, C, t_end=360, infection_rat
         ax.plot(t, R_density, label='Recovered', color='g', linewidth=2)
         
         # 4. Format the subplot to match the academic paper style
-        ax.set_title(f'{label} $\\alpha = {alpha}$', y=-0.2, fontsize=14) # Places label below X-axis
+        ax.set_title(f'{label} Country with population $= {population[id]}$', y=-0.2, fontsize=14) # Places label below X-axis
         ax.set_xlabel('Time [d]', fontsize=12)
         ax.set_ylabel('Fraction of population', fontsize=12)
         ax.legend(loc='center right')
@@ -242,16 +244,20 @@ def quarantine_plotter_3d(population, init_state, C, infection_rate, recovery_ra
 
     # 2. Run the simulation for every quarantine level
     for q in quarantine_pcts:
-        # A 30% quarantine (0.3) means social connectivity operates at 70% (0.7)
+        # A 30% quarantine (0.3) means connectivity operates at 70% (0.7)
         current_connectivity = 1.0 - q 
-        
+        eredeti_atlo = np.diag(C).copy()
+
+        C = C * current_connectivity
+
+        np.fill_diagonal(C, eredeti_atlo)
+        C = C / np.sum(C, axis=1, keepdims=True)
         sim = Simulation(
             populations=population,
             init_state=init_state,
             connection_matrix=C,
             infection_rate=infection_rate,       
             recovery_rate=recovery_rate, 
-            social_connectivity=current_connectivity, 
         )
         sim.solve_system(t_end=t_end, t_eval=np.linspace(0, t_end, t_end))
         t_array, S, I, R = sim.get_results()
@@ -323,14 +329,18 @@ def quarantine_plotter_2d(population, init_state, C, infection_rate, recovery_ra
     # 2. Loop through each quarantine level and plot its line
     for q in quarantine_levels:
         current_connectivity = 1.0 - q
-        
+
+        eredeti_atlo = np.diag(C).copy()
+        C = C * current_connectivity
+        np.fill_diagonal(C, eredeti_atlo)
+        C = C / np.sum(C, axis=1, keepdims=True)
+
         sim = Simulation(
             populations=population,
             init_state=init_state,
             connection_matrix=C,
             infection_rate=infection_rate,       
             recovery_rate=recovery_rate, 
-            social_connectivity=current_connectivity, 
         )
         sim.solve_system(t_end=t_end)
         t_ragged, S, I, R = sim.get_results()
@@ -380,6 +390,12 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
 
     # 1. Run the Simulations
     for alpha in social_connectivity_range:
+        current_connectivity = 1.0 - alpha
+
+        eredeti_atlo = np.diag(C).copy()
+        C = C * current_connectivity
+        np.fill_diagonal(C, eredeti_atlo)
+        
         for q in quarantine_range:
 
             closing = (1-q)
@@ -392,13 +408,13 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
                 current_C[quarantined_indices, :] = current_C[quarantined_indices, :] * closing
                 current_C[:, quarantined_indices] = current_C[:, quarantined_indices] * closing
             
+            current_C = current_C / np.sum(current_C, axis=1, keepdims=True)
             sim = Simulation(
                 populations=population,
                 init_state=init_state,
                 connection_matrix=current_C,
                 infection_rate=infection_rate,
                 recovery_rate=recovery_rate,
-                social_connectivity=alpha,
             )
             sim.solve_system(t_end=t_end)
             t_array, S, I, R = sim.get_results()
@@ -430,7 +446,7 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
                    vmin=np.min(Z_data), vmax=np.max(Z_data), 
                    s=20, alpha=0.3, edgecolors='none')
 
-        ax.set_xlabel(r'$\alpha$ (Social Connectivity)', fontsize=12, labelpad=8)
+        ax.set_xlabel('Quarantine level', fontsize=12, labelpad=8)
         ax.set_ylabel('Closing down largest airports', fontsize=12, labelpad=8)
         ax.set_zlabel(z_label, fontsize=12, labelpad=10)
         
@@ -467,6 +483,118 @@ def local_vs_global_quarantine(population, init_state, C, infection_rate, recove
         ax2 = fig.add_subplot(1, 2, 2, projection='3d')
         draw_3d_scatter(ax2, Z_value, 'Ratio of Non Infected People')
 
-        # THE FIX: Explicit padding values prevent the 1x2 layout from cropping the Z labels
-        plt.tight_layout(pad=4.0, w_pad=5.0)
+        plt.tight_layout()
+        plt.show()
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+def local_vs_global_quarantine_2d(population, init_state, C, infection_rate, recovery_rate, 
+                               t_end=360,
+                               top_nodes_under_quarantine=5,
+                               quarantine_range=np.linspace(0, 1, 10), 
+                               social_connectivity_range=np.linspace(0, 1, 10), display="both"):
+    
+    X_alpha = []
+    Y_outside = []
+    Z_value = []
+    Z_time = []
+    
+    total_population = np.sum(population)
+    top_nodes_idx = np.argsort(population)[::-1]
+    
+    print(f"Running {len(quarantine_range) * len(social_connectivity_range)} simulations. Please wait...")
+
+    # 1. Run the Simulations
+    for alpha in social_connectivity_range:
+        current_connectivity = 1.0 - alpha
+
+        eredeti_atlo = np.diag(C).copy()
+        C = C * current_connectivity
+        np.fill_diagonal(C, eredeti_atlo)
+        
+        for q in quarantine_range:
+
+            closing = (1-q)
+
+            current_C = C.copy() 
+            num_to_quarantine = top_nodes_under_quarantine
+            
+            if num_to_quarantine > 0:
+                quarantined_indices = top_nodes_idx[:num_to_quarantine]
+                current_C[quarantined_indices, :] = current_C[quarantined_indices, :] * closing
+                current_C[:, quarantined_indices] = current_C[:, quarantined_indices] * closing
+            
+            current_C = current_C / np.sum(current_C, axis=1, keepdims=True)
+            sim = Simulation(
+                populations=population,
+                init_state=init_state,
+                connection_matrix=current_C,
+                infection_rate=infection_rate,
+                recovery_rate=recovery_rate,
+            )
+            sim.solve_system(t_end=t_end)
+            t_array, S, I, R = sim.get_results()
+            
+            I_global = np.sum(I, axis=0) / total_population
+            
+            X_alpha.append(alpha)
+            Y_outside.append(q)
+            Z_time.append(t_array[np.argmax(I_global)])
+            Z_value.append(np.max(I_global))
+
+    # Convert to NumPy arrays
+    X_alpha = np.array(X_alpha)
+    Y_outside = np.array(Y_outside)
+    Z_time = np.array(Z_time)
+    Z_value = 1 - np.array(Z_value)
+
+    # ==========================================
+    # Helper Function for 2D Line Plots
+    # ==========================================
+    def draw_2d_lines(ax, Z_data, z_label):
+        # Find every unique Airport Shutdown parameter
+        unique_q = np.unique(Y_outside)
+        
+        # Plot a line for each specific shutdown parameter
+        for q_val in unique_q:
+            mask = (Y_outside == q_val)
+            
+            # Sort just in case to ensure line draws smoothly from left to right
+            sorted_indices = np.argsort(X_alpha[mask])
+            x_vals = X_alpha[mask][sorted_indices]
+            z_vals = Z_data[mask][sorted_indices]
+            
+            ax.plot(x_vals, z_vals, marker='o', markersize=4, label=f'Shutdown: {q_val:.2f}')
+
+        ax.set_xlabel('Quarantine level (Social Connectivity)', fontsize=12)
+        ax.set_ylabel(z_label, fontsize=12)
+        ax.grid(True, linestyle='--', alpha=0.6)
+        
+        # Place legend nicely outside the plot
+        ax.legend(title='Airport Shutdown', bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    # ==========================================
+    # Plotting Logic
+    # ==========================================
+    if display == "time":
+        fig, ax = plt.subplots(figsize=(10, 6))
+        draw_2d_lines(ax, Z_time, 'Time to Peak Infection (Days)')
+        plt.tight_layout()
+        plt.show()
+        
+    elif display == "value":
+        fig, ax = plt.subplots(figsize=(10, 6))
+        draw_2d_lines(ax, Z_value, 'Ratio of Non Infected People')
+        plt.tight_layout()
+        plt.show()
+        
+    else: # "both"
+        # Increased width to comfortably fit two plots plus their outer legends
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 6))
+        
+        draw_2d_lines(ax1, Z_time, 'Time to Peak Infection (Days)')
+        draw_2d_lines(ax2, Z_value, 'Ratio of Non Infected People')
+
+        plt.tight_layout(pad=3.0)
         plt.show()
