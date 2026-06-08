@@ -6,24 +6,34 @@ import os
 import pandas as pd
 from core import Simulation
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib as mpl
 
-def simple_plot(t, S, I, R):
-    fig, ax = plt.subplots(figsize=(8, 6))
-    stats = np.stack((S.T, I.T, R.T), axis=-1)
-    stats_global = np.sum(stats, axis=1)
-    stats_global = stats_global / np.sum(stats_global, axis=1, keepdims=True)
+def simple_plot(population, init_state, C, t_end=365, infection_rate=0.1, recovery_rate=0.05,):
 
+    fig, ax = plt.subplots()
+    total_population = np.sum(population)
 
-    labels = ["S", "I", "R"]
-    colors = ["b", "r", "g"]
-
-    for i, l in enumerate(labels):
-        plt.plot(t, stats_global[:, i], label = l, color=colors[i])
-
-    ax.set_xlabel("t [days]")
-    ax.set_ylabel("Fraction of population")
-    ax.legend()
-    return ax
+    sim = Simulation(
+    populations=population,
+    init_state=init_state,
+    connection_matrix=C,
+    infection_rate=infection_rate,       
+    recovery_rate=recovery_rate, 
+    )
+    maximum_pop = np.max(population)
+    sum_pop = np.sum(population)
+    cmap = mpl.colormaps["viridis"]
+    colors = [cmap(pop / maximum_pop) for pop in population] 
+    norm = mpl.colors.Normalize(vmin=np.min(population), vmax=maximum_pop)
+    sim.solve_system(t_end=t_end)
+    t, S, I, R = sim.get_results()
+    for i in range(I.shape[0]):
+        ax.plot(t, I[i] / sum_pop, color=colors[i])
+    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="City population")
+    ax.set_title(f'SIR model test \n $\\beta = {infection_rate}, \\mu = {recovery_rate}, R_0 = {infection_rate/recovery_rate}$')
+    ax.set_xlabel('t [days]')
+    ax.set_ylabel('Infected population [ratio per continent]')
+    plt.show()
 
 def generate_gif(time, S, I, R, eurostat_codes, gif_path = 'sir_eu_model_2x2_new.gif'):
     # ==========================================
@@ -524,7 +534,8 @@ def local_vs_global_quarantine_2d(population, init_state, C, infection_rate, rec
                 quarantined_indices = top_nodes_idx[:num_to_quarantine]
                 current_C[quarantined_indices, :] = current_C[quarantined_indices, :] * closing
                 current_C[:, quarantined_indices] = current_C[:, quarantined_indices] * closing
-            
+
+            np.fill_diagonal(current_C, eredeti_atlo)
             current_C = current_C / np.sum(current_C, axis=1, keepdims=True)
             sim = Simulation(
                 populations=population,
