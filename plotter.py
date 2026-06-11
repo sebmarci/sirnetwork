@@ -29,8 +29,8 @@ def simple_plot(population, init_state, C, t_end=365, infection_rate=0.1, recove
     t, S, I, R = sim.get_results()
     for i in range(I.shape[0]):
         ax.plot(t, I[i] / sum_pop, color=colors[i])
-    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="City population")
-    ax.set_title(f'SIR model test \n $\\beta = {infection_rate}, \\mu = {recovery_rate}, R_0 = {infection_rate/recovery_rate}$')
+    fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="Country population")
+    ax.set_title(f'Disease spread in different countries\n $\\beta = {infection_rate}, \\mu = {recovery_rate}, R_0 = {infection_rate/recovery_rate}$')
     ax.set_xlabel('t [days]')
     ax.set_ylabel('Infected population [ratio per continent]')
     plt.show()
